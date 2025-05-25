@@ -1,57 +1,53 @@
-import React from "react"
-import IngredientsList from "./IngredientsList"
-import ClaudeRecipe from "./ClaudeRecipe"
-import { getRecipeFromChefClaude, getRecipeFromMistral } from "../ai"
+import React from "react";
+import IngredientsList from "./IngredientsList";
+import ClaudeRecipe from "./ClaudeRecipe";
+import { getRecipeFromMistral } from "../ai";
 
 export default function Main() {
-    const [ingredients, setIngredients] = React.useState(
-        ["chicken", "all the main spices", "corn", "heavy cream", "pasta"]
-    )
-    const [recipe, setRecipe] = React.useState("")
-    const recipeSection = React.useRef(null)
-    
-    React.useEffect(() => {
-        if (recipe !== "" && recipeSection.current !== null) {
-            // recipeSection.current.scrollIntoView({behavior: "smooth"})
-            const yCoord = recipeSection.current.getBoundingClientRect().top + window.scrollY
-            window.scroll({
-                top: yCoord,
-                behavior: "smooth"
-            })
-        }
-    }, [recipe])
+  const [ingredients, setIngredients] = React.useState([]);
+  const [recipe, setRecipe] = React.useState("");
+  const recipeSection = React.useRef(null);
 
-    async function getRecipe() {
-        const recipeMarkdown = await getRecipeFromChefClaude(ingredients)
-        setRecipe(recipeMarkdown)
+  React.useEffect(() => {
+    if (recipe !== "" && recipeSection.current !== null) {
+      recipeSection.current.scrollIntoView({ behavior: "smooth" });
     }
+  }, [recipe]);
 
-    function addIngredient(formData) {
-        const newIngredient = formData.get("ingredient")
-        setIngredients(prevIngredients => [...prevIngredients, newIngredient])
-    }
-    
-    return (
-        <main>
-            <form action={addIngredient} className="add-ingredient-form">
-                <input
-                    type="text"
-                    placeholder="e.g. oregano"
-                    aria-label="Add ingredient"
-                    name="ingredient"
-                />
-                <button>Add ingredient</button>
-            </form>
+  async function getRecipe() {
+    const recipeMarkdown = await getRecipeFromMistral(ingredients);
+    setRecipe(recipeMarkdown);
+  }
 
-            {ingredients.length > 0 &&
-                <IngredientsList
-                    ref={recipeSection}
-                    ingredients={ingredients}
-                    getRecipe={getRecipe}
-                />
-            }
+  function addIngredient(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const newIngredient = formData.get("ingredient");
+    setIngredients((prevIngredients) => [...prevIngredients, newIngredient]);
+    event.target.reset();
+  }
 
-            {recipe && <ClaudeRecipe recipe={recipe} />}
-        </main>
-    )
+  return (
+    <main>
+      <form onSubmit={addIngredient} className="add-ingredient-form">
+        <input
+          type="text"
+          placeholder="e.g. oregano"
+          aria-label="Add ingredient"
+          name="ingredient"
+        />
+        <button>Add ingredient</button>
+      </form>
+
+      {ingredients.length > 0 && (
+        <IngredientsList ingredients={ingredients} getRecipe={getRecipe} />
+      )}
+
+      {recipe && (
+        <div ref={recipeSection}>
+          <ClaudeRecipe recipe={recipe} />
+        </div>
+      )}
+    </main>
+  );
 }
