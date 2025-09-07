@@ -20,9 +20,9 @@ export async function handler(event, context) {
     const ingredientsString = ingredients.join(", ");
     const prompt = `${SYSTEM_PROMPT}\n\nI have ${ingredientsString}. Please give me a recipe you'd recommend I make!`;
 
-    // Try the direct API approach with fetch instead of HfInference
+    // Try with a well-known, stable model using direct API
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+      "https://api-inference.huggingface.co/models/gpt2",
       {
         method: "POST",
         headers: {
@@ -32,21 +32,29 @@ export async function handler(event, context) {
         body: JSON.stringify({
           inputs: prompt,
           parameters: {
-            max_new_tokens: 200,
-            temperature: 0.7,
+            max_new_tokens: 150,
+            temperature: 0.8,
+            do_sample: true,
+            return_full_text: false,
+          },
+          options: {
             wait_for_model: true,
           },
         }),
       }
     );
 
+    console.log("Response status:", response.status);
+    console.log("Response headers:", Object.fromEntries(response.headers));
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("API Error Details:", errorText);
       throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("API Response:", data); // Debug log
+    console.log("Full API Response:", JSON.stringify(data, null, 2));
 
     // Handle different response formats
     let recipe = "";
@@ -55,6 +63,7 @@ export async function handler(event, context) {
     } else if (data.generated_text) {
       recipe = data.generated_text;
     } else {
+      console.error("Unexpected response format:", data);
       recipe = "Sorry, couldn't generate a recipe. Please try again.";
     }
 
@@ -63,7 +72,7 @@ export async function handler(event, context) {
       body: JSON.stringify({ recipe }),
     };
   } catch (err) {
-    console.error("API error:", err);
+    console.error("Full error details:", err);
     return {
       statusCode: 503,
       body: JSON.stringify({
