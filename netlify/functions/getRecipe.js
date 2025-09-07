@@ -20,23 +20,38 @@ export async function handler(event, context) {
     const ingredientsString = ingredients.join(", ");
     const prompt = `${SYSTEM_PROMPT}\n\nI have ${ingredientsString}. Please give me a recipe you'd recommend I make!`;
 
-    const response = await hf.textGeneration(
-      {
-        model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 500,
-          temperature: 0.7,
-          wait_for_model: true,
-          use_cache: false,
-        },
-      },
-      {
-        // Options as second parameter
-        retry_on_error: true,
-        wait_for_model: true,
+    // Try multiple models in order of preference
+    const models = [
+      "mistralai/Mistral-7B-Instruct-v0.1",
+      "microsoft/DialoGPT-medium",
+      "google/flan-t5-base",
+    ];
+
+    let response = null;
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        response = await hf.textGeneration({
+          model: model,
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 500,
+            temperature: 0.7,
+            wait_for_model: true,
+          },
+        });
+        break; // Success, exit loop
+      } catch (err) {
+        console.error(`Model ${model} failed:`, err.message);
+        lastError = err;
+        continue; // Try next model
       }
-    );
+    }
+
+    if (!response) {
+      throw lastError || new Error("All models failed");
+    }
 
     return {
       statusCode: 200,
@@ -44,7 +59,6 @@ export async function handler(event, context) {
     };
   } catch (err) {
     console.error("HF error:", err);
-    // Better error handling
     return {
       statusCode: 503,
       body: JSON.stringify({
