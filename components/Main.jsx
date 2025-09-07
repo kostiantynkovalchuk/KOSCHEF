@@ -6,6 +6,7 @@ import { getRecipeFromMistral } from "../ai";
 export default function Main() {
   const [ingredients, setIngredients] = React.useState([]);
   const [recipe, setRecipe] = React.useState("");
+  const [loading, setLoading] = React.useState(false); // <-- new loading state
   const recipeSection = React.useRef(null);
 
   React.useEffect(() => {
@@ -15,7 +16,7 @@ export default function Main() {
   }, [recipe]);
 
   async function getRecipe() {
-    const recipeMarkdown = await getRecipeFromMistral(ingredients);
+    const recipeMarkdown = await getRecipeFromMistral(ingredients, setLoading); // pass setLoading
     setRecipe(recipeMarkdown);
   }
 
@@ -38,12 +39,16 @@ export default function Main() {
         />
         <button>Add ingredient</button>
       </form>
-
       {ingredients.length > 0 && (
-        <IngredientsList ingredients={ingredients} getRecipe={getRecipe} />
+        <IngredientsList
+          ingredients={ingredients}
+          getRecipe={getRecipe}
+          disabled={loading} // optional: disable while loading
+        />
       )}
-
-      {recipe && (
+      {loading && <div className="spinner">⏳ Generating recipe...</div>}{" "}
+      {/* spinner */}
+      {recipe && !loading && (
         <div ref={recipeSection}>
           <ClaudeRecipe recipe={recipe} />
         </div>

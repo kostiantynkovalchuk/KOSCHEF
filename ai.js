@@ -1,4 +1,7 @@
-export async function getRecipeFromMistral(ingredientsArr) {
+// ai.js
+export async function getRecipeFromMistral(ingredientsArr, setLoading) {
+  setLoading(true); // start spinner
+
   try {
     const response = await fetch("/.netlify/functions/getRecipe", {
       method: "POST",
@@ -17,5 +20,7 @@ export async function getRecipeFromMistral(ingredientsArr) {
   } catch (err) {
     console.error("Error fetching recipe:", err.message);
     return null;
+  } finally {
+    setLoading(false); // stop spinner
   }
 }
