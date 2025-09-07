@@ -21,7 +21,7 @@ export async function handler(event, context) {
     const prompt = `${SYSTEM_PROMPT}\n\nI have ${ingredientsString}. Please give me a recipe you'd recommend I make!`;
 
     const response = await hf.textGeneration({
-      model: "tiiuae/falcon-7b-instruct",
+      model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
       inputs: prompt,
       parameters: {
         max_new_tokens: 500,
