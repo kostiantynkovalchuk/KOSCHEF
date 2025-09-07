@@ -46,8 +46,14 @@ export default function Main() {
           disabled={loading} // optional: disable while loading
         />
       )}
-      {loading && <div className="spinner">⏳ Generating recipe...</div>}{" "}
-      {/* spinner */}
+      {loading && (
+        <div className="recipe-loading">
+          <div className="chef-spinner">
+            <div className="chef-hat">👨‍🍳</div>
+            Chef Kos is thinking...
+          </div>
+        </div>
+      )}
       {recipe && !loading && (
         <div ref={recipeSection}>
           <ClaudeRecipe recipe={recipe} />
