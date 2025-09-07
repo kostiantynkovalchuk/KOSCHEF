@@ -13,7 +13,7 @@ export async function getRecipeFromMistral(ingredientsArr) {
 
   try {
     const response = await hf.textGeneration({
-      model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+      model: "tiiuae/falcon-7b-instruct",
       inputs: prompt,
       parameters: {
         max_new_tokens: 500,
