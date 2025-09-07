@@ -1,8 +1,4 @@
-import { HfInference } from "@huggingface/inference";
-
-const SYSTEM_PROMPT = `
-You are an assistant that receives a list of ingredients that a user has and suggests a recipe they could make with some or all of those ingredients. You don't need to use every ingredient they mention in your recipe. The recipe can include additional ingredients they didn't mentioned in your recipe. Format your response in markdown.
-`;
+const SYSTEM_PROMPT = `You are a helpful cooking assistant. When given a list of ingredients, suggest a creative and practical recipe that uses some or all of those ingredients. You can suggest additional common ingredients if needed. Format your response in markdown with clear sections for ingredients and instructions.`;
 
 export async function handler(event, context) {
   try {
@@ -16,86 +12,70 @@ export async function handler(event, context) {
     }
 
     const ingredientsString = ingredients.join(", ");
-    const prompt = `${SYSTEM_PROMPT}\n\nI have ${ingredientsString}. Please give me a recipe you'd recommend I make!`;
 
-    console.log(
-      "Token value (first 10 chars):",
-      process.env.koschef?.substring(0, 10)
-    );
-    console.log("Token exists:", !!process.env.koschef);
+    console.log("Calling Claude API with ingredients:", ingredientsString);
 
-    // Create HF instance and try with very basic parameters
-    const hf = new HfInference(process.env.koschef);
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-3-haiku-20240307", // Fast and cost-effective
+        max_tokens: 500,
+        temperature: 0.7,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: `I have these ingredients: ${ingredientsString}. Please suggest a recipe I can make with them.`,
+          },
+        ],
+      }),
+    });
 
-    try {
-      console.log("Attempting with minimal parameters...");
-      const response = await hf.textGeneration({
-        model: "gpt2", // Most basic model
-        inputs: `Recipe using ${ingredientsString}: `,
-        parameters: {
-          max_length: 200, // Use max_length instead of max_new_tokens
-          temperature: 0.8,
-        },
-      });
+    console.log("Claude API response status:", response.status);
 
-      console.log("AI Response received:", typeof response.generated_text);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Claude API error:", errorData);
+      throw new Error(`Claude API error: ${response.status}`);
+    }
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ recipe: response.generated_text }),
-      };
-    } catch (aiError) {
-      console.error(
-        "AI model failed, using enhanced fallback:",
-        aiError.message
-      );
+    const data = await response.json();
+    console.log("Claude API success");
 
-      // Enhanced fallback with actual recipe suggestions
-      const recipeTemplates = {
-        "avocado,potato,olive oil,cucumber": {
-          title: "Mediterranean Potato Salad",
-          instructions: [
-            "Boil potatoes until tender (15-20 minutes)",
-            "Dice cucumber and avocado",
-            "Mix with olive oil, lemon juice, salt and pepper",
-            "Serve chilled",
-          ],
-        },
-        default: {
-          title: `Simple ${ingredientsString} Recipe`,
-          instructions: [
-            "Prepare all ingredients",
-            "Heat olive oil in a pan if needed",
-            "Cook ingredients according to type",
-            "Season and serve",
-          ],
-        },
-      };
+    const recipe = data.content[0].text;
 
-      const key = ingredients.sort().join(",");
-      const template = recipeTemplates[key] || recipeTemplates["default"];
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ recipe }),
+    };
+  } catch (err) {
+    console.error("Claude API failed, using fallback:", err);
 
-      const fallbackRecipe = `# ${template.title}
+    // Keep your smart fallback system as backup
+    const fallbackRecipe = `# Quick Recipe with ${ingredientsString}
 
 ## Ingredients:
 - ${ingredients.join("\n- ")}
 - Salt and pepper to taste
+- Olive oil for cooking
 
 ## Instructions:
-${template.instructions.map((step, i) => `${i + 1}. ${step}`).join("\n")}
+1. Prepare and wash all ingredients
+2. Heat olive oil in a pan over medium heat
+3. Cook ingredients according to their cooking times
+4. Season with salt and pepper
+5. Serve hot
 
-*Generated with backup recipe system*`;
+*Note: Claude AI is temporarily unavailable. This is a basic recipe template.*`;
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ recipe: fallbackRecipe }),
-      };
-    }
-  } catch (err) {
-    console.error("Function error:", err);
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      statusCode: 200,
+      body: JSON.stringify({ recipe: fallbackRecipe }),
     };
   }
 }
