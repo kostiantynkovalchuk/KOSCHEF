@@ -20,50 +20,54 @@ export async function handler(event, context) {
     const ingredientsString = ingredients.join(", ");
     const prompt = `${SYSTEM_PROMPT}\n\nI have ${ingredientsString}. Please give me a recipe you'd recommend I make!`;
 
-    // Try multiple models in order of preference
-    const models = [
-      "mistralai/Mistral-7B-Instruct-v0.1",
-      "microsoft/DialoGPT-medium",
-      "google/flan-t5-base",
-    ];
-
-    let response = null;
-    let lastError = null;
-
-    for (const model of models) {
-      try {
-        response = await hf.textGeneration({
-          model: model,
+    // Try the direct API approach with fetch instead of HfInference
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.koschef}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           inputs: prompt,
           parameters: {
-            max_new_tokens: 500,
+            max_new_tokens: 200,
             temperature: 0.7,
             wait_for_model: true,
           },
-        });
-        break; // Success, exit loop
-      } catch (err) {
-        console.error(`Model ${model} failed:`, err.message);
-        lastError = err;
-        continue; // Try next model
+        }),
       }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
 
-    if (!response) {
-      throw lastError || new Error("All models failed");
+    const data = await response.json();
+    console.log("API Response:", data); // Debug log
+
+    // Handle different response formats
+    let recipe = "";
+    if (Array.isArray(data) && data[0]?.generated_text) {
+      recipe = data[0].generated_text;
+    } else if (data.generated_text) {
+      recipe = data.generated_text;
+    } else {
+      recipe = "Sorry, couldn't generate a recipe. Please try again.";
     }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ recipe: response.generated_text }),
+      body: JSON.stringify({ recipe }),
     };
   } catch (err) {
-    console.error("HF error:", err);
+    console.error("API error:", err);
     return {
       statusCode: 503,
       body: JSON.stringify({
-        error:
-          "Recipe generation is temporarily unavailable. Please try again in a moment.",
+        error: `Recipe generation failed: ${err.message}`,
       }),
     };
   }
