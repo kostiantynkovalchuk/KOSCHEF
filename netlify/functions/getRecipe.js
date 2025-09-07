@@ -27,6 +27,11 @@ export async function handler(event, context) {
         max_new_tokens: 500,
         temperature: 0.7,
         wait_for_model: true,
+        use_cache: false, // Add this
+      },
+      options: {
+        retry_on_error: true, // Add this
+        wait_for_model: true, // Add this
       },
     });
 
